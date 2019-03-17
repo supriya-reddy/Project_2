@@ -1,0 +1,75 @@
+# PROJECT WITH RESPECT TO HOUSING DATA
+house<- openxlsx::read.xlsx(file.choose())
+house<-house[!duplicated(house),]
+str(house)
+summary(house)
+sapply(house, function(x) length(unique(x)))
+sum(is.na(house))
+par(mfrow=c(1,3))
+boxplot(house$floor_area_sqm)
+
+
+q<-lm(resale_price~lease_commence_date+floor_area_sqm, house)
+summary(q)
+
+l<-lapply(house[,c(1:6,8)], factor)
+str(l)
+m1<-cbind(l, house[,c(7,9,10)])
+str(m1)
+ sum(is.na(m1))
+sapply(m1, function(x) length(unique(x)))
+boxplot(m1$floor_area_sqm)
+quantile(m1$floor_area_sqm,0.99)
+ max(m1$floor_area_sqm)
+
+# Month Column
+length(unique(dat$month)) # 215 --- 2000-01 to 2017-11
+dat$year<-sapply(dat$month, function(x) unlist(strsplit(x,"-"))[1])
+dat$Month<-sapply(dat$month, function(x) unlist(strsplit(x,"-"))[2])
+
+## Create difference of present ot lease date
+dat$yearFromLease<-as.integer(dat$year) - as.integer(dat$lease_commence_date)
+dat<-dat[,!names(dat) %in% c("lease_commence_date")]
+dat$floor_area_sqm[dat$floor_area_sqm>quantile(dat$floor_area_sqm,0.99)]<- quantile(dat$floor_area_sqm,0.99)
+dat$yearFromLease[dat$yearFromLease<4]<-3
+dat$yearFromLease[dat$yearFromLease>42]<-42
+
+# Univariate Analysis
+### FLoor Area Plot 
+ggplot(dat,aes(x=log(floor_area_sqm),y=log(resale_price)))+geom_point(fill = "steelblue")
+summary(lm(log(resale_price)~log(floor_area_sqm),dat))
+
+## resale price per square feet
+dat$pricePerMeter<-dat$resale_price/dat$floor_area_sqm
+summary(lm(log(resale_price)~log(pricePerMeter),dat))
+dat$log_pricePerMeter<-log(dat$pricePerMeter)
+
+### year from lease
+ggplot(dat,aes(x=yearFromLease,y=log(resale_price)))+geom_point(fill = "steelblue")
+summary(lm(resale_price~yearFromLease,dat))
+# Create category
+library(rpart)
+library(rpart.plot)
+d<-rpart(resale_price~yearFromLease,data=dat)
+rpart.plot(d)
+
+dat$yearFromLease<-ifelse(dat$yearFromLease<14,"New","old")
+# 5% of the variabilty explained by year from lease
+
+# Month
+dat$year<-as.numeric(dat$year)
+dat$Month<-as.numeric(dat$Month)
+summary(lm(log(resale_price)~log(Month),dat)) # only 0.02% 
+summary(lm(log(resale_price)~year,dat)) # 36% 
+
+##### Use all numeric function to predict resale Price
+dat$log_resale_price<-log(dat[,"resale_price"])
+dat$log_floorArea<-log(dat[,"floor_area_sqm"])
+
+library(ggplot2)
+require(GGally)
+plot1<-ggpairs(data=dat, columns=c("yearFromLease","resale_price","floor_area_sqm","pricePerMeter"),
+               mapping = aes(color = "dark green"),
+               axisLabels="show")
+plot1
+summary(lm(log(resale_price)~year+yearFromLease+log(floor_area_sqm),data=dat))
